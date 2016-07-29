@@ -8,6 +8,7 @@ import java.util.Queue;
 
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
+import org.jsoup.nodes.Node;
 
 import redis.clients.jedis.Jedis;
 
@@ -50,12 +51,31 @@ public class WikiCrawler {
 	 * Gets a URL from the queue and indexes it.
 	 * @param b 
 	 * 
-	 * @return Number of pages indexed.
+	 * @return Indexed URL
 	 * @throws IOException
 	 */
 	public String crawl(boolean testing) throws IOException {
-        // FILL THIS IN!
-		return null;
+		// FILL THIS IN!
+		if (queue.isEmpty()) {
+            return null;
+        }
+
+        String currentUrl = queue.remove();
+
+        Elements paragraphs;
+        if (testing == true) {
+        	paragraphs = wf.readWikipedia(currentUrl);
+        }
+        else {
+        	if (index.isIndexed(currentUrl)) {
+        		return null;
+        	}
+        	paragraphs = wf.fetchWikipedia(currentUrl);
+        }
+		index.indexPage(currentUrl, paragraphs);
+        queueInternalLinks(paragraphs);
+
+		return currentUrl;
 	}
 	
 	/**
@@ -66,6 +86,35 @@ public class WikiCrawler {
 	// NOTE: absence of access level modifier means package-level
 	void queueInternalLinks(Elements paragraphs) {
         // FILL THIS IN!
+		for (Element paragraph: paragraphs) {
+			Iterable<Node> iter = new WikiNodeIterable(paragraph);
+			for (Node node: iter) {
+				if (isLink(node)){
+					Element ele = (Element) node;
+					String link = "https://en.wikipedia.org" + ele.attr("href");
+					queue.add(link);
+				}
+			}
+		}
+
+	}
+
+	/**
+	 * Checks if node is a wikipedia link
+	 * 
+	 * @param node
+	 *
+	 * @return b
+	 *
+	 */
+	private boolean isLink(Node node){
+		if (node instanceof Element && node.hasAttr("href")) {
+			Element ele = (Element) node;
+			if (ele.attr("href").startsWith("/wiki/")) { //check if wikipedia 
+				return true;
+			}
+		}
+		return false;
 	}
 
 	public static void main(String[] args) throws IOException {
